@@ -34,10 +34,11 @@
   version = "0.3.0"
 
 [[projects]]
-  digest = "1:49f9d62ba765b7d638dc8abd4b68252dc511a1b8fe44a6697e94660bde541d2d"
+  digest = "1:4badc694fff452f662bcd8cb63885f76d1a2922401b7bc425f91e6ac946b31a1"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
+    "aws/arn",
     "aws/awserr",
     "aws/awsutil",
     "aws/client",
@@ -55,15 +56,23 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/context",
     "internal/ini",
-    "internal/s3err",
+    "internal/s3shared",
+    "internal/s3shared/arn",
+    "internal/s3shared/s3err",
     "internal/sdkio",
+    "internal/sdkmath",
     "internal/sdkrand",
     "internal/sdkuri",
     "internal/shareddefaults",
+    "internal/strings",
+    "internal/sync/singleflight",
+    "private/checksum",
     "private/protocol",
     "private/protocol/eventstream",
     "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/json/jsonutil",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
@@ -73,10 +82,11 @@
     "service/s3/s3iface",
     "service/s3/s3manager",
     "service/sts",
+    "service/sts/stsiface",
   ]
   pruneopts = "UT"
-  revision = "a21788f1964e28dc1e3932e595db6707ce8070cf"
-  version = "v1.16.7"
+  revision = "416d69c754abe8f0b32f6dcd8837d086812583d6"
+  version = "v1.35.28"
 
 [[projects]]
   digest = "1:49ea765e340f3907fc52ab1cc23bf9698d2d4fa9db14673710879d2ae2d22a9a"
@@ -208,6 +218,17 @@
   pruneopts = "UT"
   revision = "ab8a2e0c74be9d3be70b3184d9acc634935ded82"
   version = "1.1.4"
+
+[[projects]]
+  digest = "1:48addb4ab030c6885899bb73b20a86dad347a58e6fc74f20bdafab1efb26a36a"
+  name = "github.com/maorfr/skbn"
+  packages = [
+    "pkg/skbn",
+    "pkg/utils",
+  ]
+  pruneopts = "UT"
+  revision = "3d8a7af7e6207a77c0532cf8c9128ef8ab1a2597"
+  version = "0.5.0"
 
 [[projects]]
   digest = "1:33422d238f147d247752996a26574ac48dcf472976eda7f5134015f06bf16563"
@@ -659,6 +680,8 @@
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
     "github.com/djherbis/buffer",
+    "github.com/maorfr/skbn/pkg/skbn",
+    "github.com/maorfr/skbn/pkg/utils",
     "github.com/spf13/cobra",
     "google.golang.org/api/iterator",
     "gopkg.in/djherbis/nio.v2",

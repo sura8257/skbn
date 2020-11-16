@@ -8,7 +8,7 @@
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
-  version = "1.16.7"
+  version = "1.23.13"
 
 [[override]]
   name = "golang.org/x/oauth2"
