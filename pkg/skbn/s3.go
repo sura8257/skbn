@@ -78,7 +78,7 @@ func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
 		return err
 	}
 
-	log.Printf("Concurrency: %s PartSize: %s", parallel, bufferSize)
+	log.Printf("Concurrency: %d PartSize: %d", parallel, uint64(bufferSize))
 
 	client := s3.NewFromConfig(cfg)
 
@@ -139,7 +139,7 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 
 	defer file.Close()
 
-	log.Printf("Concurrency: %s PartSize: %s", parallel, bufferSize)
+	log.Printf("Concurrency: %d PartSize: %d", parallel, uint64(bufferSize))
 
 	uploader := manager.NewUploader(client, func(u *manager.Uploader) {
 		u.Concurrency = parallel
