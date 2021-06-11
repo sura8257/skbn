@@ -17,13 +17,11 @@ func SplitInTwo(s, sep string) (string, string) {
 
 // Check file stat
 func CheckFileStat(file string) error {
-	log.Printf("checking file size: %s", file)
 	stat, err := os.Stat(file)
 	if err != nil {
 		log.Fatal(file, "failed to check its stat")
 	}
-
-	log.Printf("File size: %d", stat.Size())
+	log.Printf("File: %s  Size: %d", stat.Name(), stat.Size())
 
 	return nil
 }

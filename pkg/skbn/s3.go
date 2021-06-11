@@ -3,7 +3,6 @@ package skbn
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -108,20 +107,14 @@ func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
 
 // Upload a file to s3 bucket
 func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
-
-	log.Printf("Uploading file: %s ", src)
-
-	err := utils.CheckFileStat(src)
-	if err != nil {
-		return err
-	}
-
-	_, dstPath := utils.SplitInTwo(dst, "://")
-
-	dstPathSplit := strings.Split(dstPath, "/")
-	dstBucket, s3Path := initS3Variables(dstPathSplit)
-
-	log.Printf("Bucket: %s File: %s", dstBucket, s3Path)
+	walker := make(fileWalk)
+	go func() {
+		// Gather the files to upload by walking the path recursively
+		if err := filepath.Walk(src, walker.Walk); err != nil {
+			log.Fatalln("Walk failed:", err)
+		}
+		close(walker)
+	}()
 
 	cfg, err := awsConfig()
 	if err != nil {
@@ -130,35 +123,67 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 
 	client := s3.NewFromConfig(cfg)
 
-	file, err := os.Open(src)
+	dst = strings.TrimSuffix(dst, "/")
 
-	if err != nil {
-		fmt.Println("Unable to open file " + src)
-		return err
+	for path := range walker {
+		_, err := filepath.Rel(src, path)
+		if err != nil {
+			log.Fatalln("Unable to get relative path:", path, err)
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			log.Println("Failed opening file", path, err)
+			continue
+		}
+		defer file.Close()
+
+		log.Printf("Uploading file: %s ", path)
+
+		err = utils.CheckFileStat(path)
+		if err != nil {
+			return err
+		}
+
+		_, dstPath := utils.SplitInTwo(dst, "://")
+
+		dstPathSplit := strings.Split(dstPath, "/")
+
+		log.Println(dstPathSplit)
+		val := len(dstPathSplit)
+		log.Println(val)
+
+		if len(dstPathSplit) == 1 {
+			_, fileName := filepath.Split(path)
+			dstPathSplit = append(dstPathSplit, fileName)
+			log.Println(fileName)
+		}
+
+		log.Println(dstPathSplit)
+
+		dstBucket, s3Path := initS3Variables(dstPathSplit)
+
+		log.Printf("Bucket: %s File: %s", dstBucket, s3Path)
+
+		log.Printf("Concurrency: %d PartSize: %d", parallel, uint64(bufferSize))
+
+		uploader := manager.NewUploader(client, func(u *manager.Uploader) {
+			u.Concurrency = parallel
+			u.PartSize = bufferSize
+			u.LeavePartsOnError = false
+		})
+
+		_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+			Bucket: aws.String(dstBucket),
+			Key:    aws.String(s3Path),
+			Body:   file,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		log.Printf("Successfully uploaded")
 	}
-
-	defer file.Close()
-
-	log.Printf("Concurrency: %d PartSize: %d", parallel, uint64(bufferSize))
-
-	uploader := manager.NewUploader(client, func(u *manager.Uploader) {
-		u.Concurrency = parallel
-		u.PartSize = bufferSize
-		u.LeavePartsOnError = false
-	})
-
-	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(dstBucket),
-		Key:    aws.String(s3Path),
-		Body:   file,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Successfully uploaded")
-
 	return nil
 }
 
@@ -176,4 +201,16 @@ func initS3Variables(split []string) (string, string) {
 	path := filepath.Join(split[1:]...)
 
 	return bucket, path
+}
+
+type fileWalk chan string
+
+func (f fileWalk) Walk(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		f <- path
+	}
+	return nil
 }
