@@ -24,6 +24,8 @@ func awsConfig() (aws.Config, error) {
 		region = rg
 	}
 
+	log.Printf("Using AWS_REGION: %s", region)
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		return cfg, err
