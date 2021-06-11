@@ -58,7 +58,7 @@ func NewCpCmd(out io.Writer) *cobra.Command {
 	}
 	f := cmd.Flags()
 
-	f.StringVar(&c.src, "src", "", "path to copy from. Example: k8s://<namespace>/<podName>/<containerName>/path/to/copyfrom")
+	f.StringVar(&c.src, "src", "", "path to copy from. Example: path/to/copyfrom")
 	f.StringVar(&c.dst, "dst", "", "path to copy to. Example: s3://<bucketName>/path/to/copyto")
 	f.IntVarP(&c.parallel, "parallel", "p", 0, "number of parallel per call to upload when sending parts. If this is set to zero, the DefaultUploadConcurrency value will be used")
 	f.Int64VarP(&c.bufferSize, "buffer-size", "b", 0, "The buffer size to use when buffering data into chunks and sending them as parts to S3. If this value is set to zero, the DefaultUploadPartSize value will be used.")
