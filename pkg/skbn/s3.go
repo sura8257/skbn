@@ -1,203 +1,170 @@
 package skbn
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"io"
+	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
-	"github.com/maorfr/skbn/pkg/utils"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/sura8257/skbn/pkg/utils"
 )
 
-// GetClientToS3 checks the connection to S3 and returns the tested client
-func GetClientToS3(path string) (*session.Session, error) {
-	pSplit := strings.Split(path, "/")
-	bucket, _ := initS3Variables(pSplit)
-	attempts := 3
-	attempt := 0
-	for attempt < attempts {
-		attempt++
-
-		s, err := getNewSession()
-		if err != nil {
-			if attempt == attempts {
-				return nil, err
-			}
-			utils.Sleep(attempt)
-			continue
-		}
-
-		_, err = s3.New(s).ListObjects(&s3.ListObjectsInput{
-			Bucket:  aws.String(bucket),
-			MaxKeys: aws.Int64(0),
-		})
-		if attempt == attempts {
-			if err != nil {
-				return nil, err
-			}
-		}
-		if err == nil {
-			return s, nil
-		}
-		utils.Sleep(attempt)
-	}
-
-	return nil, nil
-}
-
-// GetListOfFilesFromS3 gets list of files in path from S3 (recursive)
-func GetListOfFilesFromS3(iClient interface{}, path string) ([]string, error) {
-	s := iClient.(*session.Session)
-	pSplit := strings.Split(path, "/")
-	if err := validateS3Path(pSplit); err != nil {
-		return nil, err
-	}
-	bucket, s3Path := initS3Variables(pSplit)
-
-	var outLines []string
-	err := s3.New(s).ListObjectsPages(&s3.ListObjectsInput{
-		Bucket: aws.String(bucket),
-		Prefix: aws.String(s3Path),
-	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
-		for _, obj := range p.Contents {
-			line := *obj.Key
-			outLines = append(outLines, strings.Replace(line, s3Path, "", 1))
-		}
-		return true
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return outLines, nil
-}
-
-// DownloadFromS3 downloads a single file from S3
-func DownloadFromS3(iClient interface{}, path string, writer io.Writer) error {
-	s := iClient.(*session.Session)
-	pSplit := strings.Split(path, "/")
-	if err := validateS3Path(pSplit); err != nil {
-		return err
-	}
-	bucket, s3Path := initS3Variables(pSplit)
-
-	attempts := 3
-	attempt := 0
-	for attempt < attempts {
-		attempt++
-
-		downloader := s3manager.NewDownloader(s)
-		downloader.Concurrency = 1 // support writerWrapper
-
-		_, err := downloader.Download(writerWrapper{writer},
-			&s3.GetObjectInput{
-				Bucket: aws.String(bucket),
-				Key:    aws.String(s3Path),
-			})
-		if err != nil {
-			if attempt == attempts {
-				return err
-			}
-			utils.Sleep(attempt)
-			continue
-		}
-		return nil
-	}
-
-	return nil
-}
-
-type writerWrapper struct {
-	w io.Writer
-}
-
-func (ww writerWrapper) WriteAt(p []byte, off int64) (n int, err error) {
-	return ww.w.Write(p)
-}
-
-// UploadToS3 uploads a single file to S3
-func UploadToS3(iClient interface{}, toPath, fromPath string, reader io.Reader) error {
-	s := iClient.(*session.Session)
-	pSplit := strings.Split(toPath, "/")
-	if err := validateS3Path(pSplit); err != nil {
-		return err
-	}
-	if len(pSplit) == 1 {
-		_, fileName := filepath.Split(fromPath)
-		pSplit = append(pSplit, fileName)
-	}
-	bucket, s3Path := initS3Variables(pSplit)
-
-	attempts := 3
-	attempt := 0
-	for attempt < attempts {
-		attempt++
-
-		uploader := s3manager.NewUploader(s)
-
-		_, err := uploader.Upload(&s3manager.UploadInput{
-			Bucket: aws.String(bucket),
-			Key:    aws.String(s3Path),
-			Body:   reader,
-		})
-		if err != nil {
-			if attempt == attempts {
-				return err
-			}
-			utils.Sleep(attempt)
-			continue
-		}
-		return nil
-	}
-
-	return nil
-}
-
-func getNewSession() (*session.Session, error) {
-
-	awsConfig := &aws.Config{}
-
-	region := "eu-central-1"
+// Get aws config
+func awsConfig() (aws.Config, error) {
+	region := "us-east-2"
 
 	if rg := os.Getenv("AWS_REGION"); rg != "" {
 		region = rg
 	}
 
-	awsConfig.Region = aws.String(region)
-
-	if endpoint := os.Getenv("AWS_S3_ENDPOINT"); endpoint != "" {
-		awsConfig.Endpoint = aws.String(endpoint)
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+	if err != nil {
+		return cfg, err
 	}
-
-	if disSSL := os.Getenv("AWS_S3_NO_SSL"); disSSL != "" {
-		disableSSL, _ := strconv.ParseBool(disSSL)
-		awsConfig.DisableSSL = aws.Bool(disableSSL)
-	}
-
-	if fps := os.Getenv("AWS_S3_FORCE_PATH_STYLE"); fps != "" {
-		forcePathStyle, _ := strconv.ParseBool(fps)
-		awsConfig.S3ForcePathStyle = aws.Bool(forcePathStyle)
-	}
-
-	s, err := session.NewSession(awsConfig)
-
-	return s, err
+	return cfg, err
 }
 
+/*
+// Copy copies files from src to dst
+func copyS3ToS3(src, dst string) error {
+
+	fmt.Println("copyS3ToS3: "+ src + "to" + dst)
+
+	srcPrefix, srcPath := utils.SplitInTwo(src, "://")
+	dstPrefix, dstPath := utils.SplitInTwo(dst, "://")
+
+	srcPathSplit := strings.Split(srcPath, "/")
+	srcBucket, _ := initS3Variables(srcPathSplit)
+
+	dstPathSplit := strings.Split(dstPath, "/")
+	dstBucket, _ := initS3Variables(dstPathSplit)
+
+
+	return nil
+	}
+*/
+
+// Download a file from s3 bucket
+func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
+
+	log.Printf("Downloading file: %s ", src)
+	_, srcPath := utils.SplitInTwo(src, "://")
+
+	srcPathSplit := strings.Split(srcPath, "/")
+
+	if err := validateS3Path(srcPathSplit); err != nil {
+		return err
+	}
+	srcBucket, s3Path := initS3Variables(srcPathSplit)
+
+	log.Printf("Bucket: %s File: %s", srcBucket, s3Path)
+
+	cfg, err := awsConfig()
+	if err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	downloader := manager.NewDownloader(client, func(d *manager.Downloader) {
+		d.Concurrency = parallel
+		d.PartSize = bufferSize
+	})
+
+	_, err = downloader.Download(context.TODO(), f, &s3.GetObjectInput{
+		Bucket: aws.String(srcBucket),
+		Key:    aws.String(s3Path),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	err = utils.CheckFileStat(dst)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Successfully downloaded file: %s", dst)
+
+	return nil
+}
+
+// Upload a file to s3 bucket
+func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
+
+	log.Printf("Uploading file: %s ", src)
+
+	err := utils.CheckFileStat(src)
+	if err != nil {
+		return err
+	}
+
+	_, dstPath := utils.SplitInTwo(dst, "://")
+
+	dstPathSplit := strings.Split(dstPath, "/")
+	dstBucket, s3Path := initS3Variables(dstPathSplit)
+
+	log.Printf("Bucket: %s File: %s", dstBucket, s3Path)
+
+	cfg, err := awsConfig()
+	if err != nil {
+		return err
+	}
+
+	client := s3.NewFromConfig(cfg)
+
+	file, err := os.Open(src)
+
+	if err != nil {
+		fmt.Println("Unable to open file " + src)
+		return err
+	}
+
+	defer file.Close()
+
+	uploader := manager.NewUploader(client, func(u *manager.Uploader) {
+		u.Concurrency = parallel
+		u.PartSize = bufferSize
+		u.LeavePartsOnError = false
+	})
+
+	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(dstBucket),
+		Key:    aws.String(s3Path),
+		Body:   file,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Successfully uploaded")
+
+	return nil
+}
+
+// Check S3 path
 func validateS3Path(pathSplit []string) error {
 	if len(pathSplit) >= 1 {
 		return nil
 	}
-	return fmt.Errorf("illegal path: %s", filepath.Join(pathSplit...))
+	return errors.New("illegal s3 path")
 }
 
+// Parse S3Uri
 func initS3Variables(split []string) (string, string) {
 	bucket := split[0]
 	path := filepath.Join(split[1:]...)

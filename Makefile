@@ -1,5 +1,5 @@
 HAS_DEP := $(shell command -v dep;)
-DEP_VERSION := v0.5.0
+DEP_VERSION := v1.0.0
 GIT_TAG := $(shell git describe --tags --always)
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 LDFLAGS := "-X main.GitTag=${GIT_TAG} -X main.GitCommit=${GIT_COMMIT}"
@@ -23,20 +23,9 @@ build: fmt vet
 # Build skbn docker image
 docker: fmt vet
 	cp bin/skbn skbn
-	docker build -t maorfr/skbn:latest .
+	docker build -t sura8257/skbn:latest .
 	rm skbn
 
-
-# Push will only happen in travis ci
-push:
-ifdef TRAVIS
-ifdef DOCKER_USER
-ifdef DOCKER_PASSWORD
-	docker login -u $(DOCKER_USER) -p $(DOCKER_PASSWORD)
-	docker push maorfr/skbn:latest
-endif
-endif
-endif
 
 bootstrap:
 ifndef HAS_DEP

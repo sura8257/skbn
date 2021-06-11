@@ -6,9 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/maorfr/skbn/pkg/skbn"
-
 	"github.com/spf13/cobra"
+	"github.com/sura8257/skbn/pkg/skbn"
 )
 
 func main() {
@@ -38,7 +37,7 @@ type cpCmd struct {
 	src        string
 	dst        string
 	parallel   int
-	bufferSize float64
+	bufferSize int64
 
 	out io.Writer
 }
@@ -49,7 +48,7 @@ func NewCpCmd(out io.Writer) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "cp",
-		Short: "Copy files or directories Kubernetes and Cloud storage",
+		Short: "Copy a file to and from cloud storage",
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := skbn.Copy(c.src, c.dst, c.parallel, c.bufferSize); err != nil {
@@ -61,8 +60,8 @@ func NewCpCmd(out io.Writer) *cobra.Command {
 
 	f.StringVar(&c.src, "src", "", "path to copy from. Example: k8s://<namespace>/<podName>/<containerName>/path/to/copyfrom")
 	f.StringVar(&c.dst, "dst", "", "path to copy to. Example: s3://<bucketName>/path/to/copyto")
-	f.IntVarP(&c.parallel, "parallel", "p", 1, "number of files to copy in parallel. set this flag to 0 for full parallelism")
-	f.Float64VarP(&c.bufferSize, "buffer-size", "b", 6.75, "in memory buffer size (MB) to use for files copy (buffer per file)")
+	f.IntVarP(&c.parallel, "parallel", "p", 0, "number of parallel per call to upload when sending parts. If this is set to zero, the DefaultUploadConcurrency value will be used")
+	f.Int64VarP(&c.bufferSize, "buffer-size", "b", 0, "The buffer size to use when buffering data into chunks and sending them as parts to S3. If this value is set to zero, the DefaultUploadPartSize value will be used.")
 
 	cmd.MarkFlagRequired("src")
 	cmd.MarkFlagRequired("dst")
