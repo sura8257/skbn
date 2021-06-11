@@ -148,17 +148,11 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 
 		dstPathSplit := strings.Split(dstPath, "/")
 
-		log.Println(dstPathSplit)
-		val := len(dstPathSplit)
-		log.Println(val)
-
 		if len(dstPathSplit) == 1 {
 			_, fileName := filepath.Split(path)
 			dstPathSplit = append(dstPathSplit, fileName)
 			log.Println(fileName)
 		}
-
-		log.Println(dstPathSplit)
 
 		dstBucket, s3Path := initS3Variables(dstPathSplit)
 
