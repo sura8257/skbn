@@ -125,6 +125,11 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 
 	dst = strings.TrimSuffix(dst, "/")
 
+	fi, err := os.Stat(src)
+	if err != nil {
+			return err
+	}
+
 	for path := range walker {
 		_, err := filepath.Rel(src, path)
 		if err != nil {
@@ -147,6 +152,12 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 		_, dstPath := utils.SplitInTwo(dst, "://")
 
 		dstPathSplit := strings.Split(dstPath, "/")
+
+		switch mode := fi.Mode(); {
+    case mode.IsDir():
+			_, fileName := filepath.Split(path)
+			dstPathSplit = append(dstPathSplit, fileName)
+		}
 
 		if len(dstPathSplit) == 1 {
 			_, fileName := filepath.Split(path)

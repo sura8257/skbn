@@ -21,7 +21,7 @@ func CheckFileStat(file string) error {
 	if err != nil {
 		log.Fatal(file, "failed to check its stat")
 	}
-	log.Printf("File: %s  Size: %d", stat.Name(), stat.Size())
+	log.Printf("File: %s  Size: %d bytes", stat.Name(), stat.Size())
 
 	return nil
 }
