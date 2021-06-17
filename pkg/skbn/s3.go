@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/sura8257/skbn/pkg/utils"
 )
 
@@ -92,6 +93,12 @@ func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
 	})
 
 	if err != nil {
+		var bne *types.NoSuchKey
+		if errors.As(err, &bne) {
+			log.Printf("NoSuchKey: '%s' does not exist in bucket: '%s'", s3Path, srcBucket)
+			return nil
+		}
+
 		return err
 	}
 
@@ -127,7 +134,7 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 
 	fi, err := os.Stat(src)
 	if err != nil {
-			return err
+		return err
 	}
 
 	for path := range walker {
@@ -154,7 +161,7 @@ func copyFileToS3(src, dst string, parallel int, bufferSize int64) error {
 		dstPathSplit := strings.Split(dstPath, "/")
 
 		switch mode := fi.Mode(); {
-    case mode.IsDir():
+		case mode.IsDir():
 			_, fileName := filepath.Split(path)
 			dstPathSplit = append(dstPathSplit, fileName)
 		}
