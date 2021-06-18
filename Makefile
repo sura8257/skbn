@@ -1,5 +1,5 @@
 HAS_DEP := $(shell command -v dep;)
-DEP_VERSION := v1.0.0
+DEP_VERSION := v1.0.1
 GIT_TAG := $(shell git describe --tags --always)
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 LDFLAGS := "-X main.GitTag=${GIT_TAG} -X main.GitCommit=${GIT_COMMIT}"
