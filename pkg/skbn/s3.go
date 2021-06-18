@@ -53,6 +53,16 @@ func copyS3ToS3(src, dst string) error {
 	}
 */
 
+// Exists reports whether the named file or directory exists.
+func Exists(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
+}
+
 // Download a file from s3 bucket
 func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
 
@@ -73,6 +83,8 @@ func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
 		return err
 	}
 
+	dstExists := Exists(dst)
+
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
@@ -91,9 +103,13 @@ func copyS3ToFile(src, dst string, parallel int, bufferSize int64) error {
 		Bucket: aws.String(srcBucket),
 		Key:    aws.String(s3Path),
 	})
-
+	f.Close()
 	if err != nil {
 		var bne *types.NoSuchKey
+		if dstExists == false {
+			os.Remove(dst)
+		}
+
 		if errors.As(err, &bne) {
 			log.Printf("NoSuchKey: '%s' does not exist in bucket: '%s'", s3Path, srcBucket)
 			return nil
